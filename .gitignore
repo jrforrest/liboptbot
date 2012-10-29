@@ -1,0 +1,10 @@
+*.so
+*.o
+doc/*
+!doc/.gitignore
+bin/*
+!bin/.gitignore
+build/*
+!build/.gitignore
+lib/*
+!lib/.gitignore

@@ -1,0 +1,6 @@
+main.c contains the only test suite for the moment.  These are integration
+level tests for the functions in liboptbot.  No unit tests for these functions exist at
+this time.
+
+The Check library is used for these tests.  They can be run with `make test`
+in the project root.
