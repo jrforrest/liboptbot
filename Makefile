@@ -1,6 +1,6 @@
 CFLAGS=-Wall -I./src
 CC=gcc
-VERSION=0.0.1
+VERSION=0.1.0
 
 # Set the debug macro for compilation if requested
 ifeq ($(DEBUG), true)
