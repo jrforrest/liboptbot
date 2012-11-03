@@ -16,7 +16,7 @@ int main(int argc, const char** argv) {
     return 1;
   }
 
-  if(little_opt_arg(arg_list, 'h')->set)
+  if(little_opt_arg(arg_list, 'h')->times_set)
     print_help(arg_list);
 
   destroy_cli_arg_list(arg_list);

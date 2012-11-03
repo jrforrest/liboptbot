@@ -27,14 +27,19 @@
     goto error;\
   }
 
+#define INITIAL_VALUES_SIZE 10
+
 /*! A command line argument */
 struct cli_arg {
-  bool set; /*! Has this argument been set? */
   char* description; /* A brief description of this argument */
   char* big; /* The long option that this argument takes, sans dashes */
   char little; /* The short option that this argument takes */
   bool takes_value; /* Does this argument take a value? */
-  char* value; /* The value that has been assigned to this argument */
+  bool allow_multiple; /* Can this argument be set multiple times? */
+  int times_set; /* The number of times this option was set */
+  int values_length; /* The number of values held in values */
+  int values_size; /* The number of values allocated in values */
+  char** values; /* The value that have been assigned to this argument */
 };
 
 /* User error types */

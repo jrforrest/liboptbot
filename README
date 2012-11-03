@@ -35,6 +35,7 @@ typos, I haven't compiled this.)
 // Other includes go here...
 
 int main(int argc, char** argv) {
+  int i;
   // Initialize our arg list
   struct cli_arg_list* arg_list = init_cli_arg_list();
 
@@ -52,6 +53,7 @@ int main(int argc, char** argv) {
   add_arg(arg_list, 'd', "debug", "Enable debug output?", false);
   add_arg(arg_list, 'f', "file", "File to output to", true);
   add_arg(arg_list, 'h', "help", "Print help and exit", false);
+  add_arg(arg_list, 'r', "record", "Record some data", true);
 
   // I just want to watch the world burn.
   retry:
@@ -83,12 +85,15 @@ int main(int argc, char** argv) {
   //       Don't abuse it or you know, bad linear time lookup type things
   //       will happen.   If anyone wants to use this for rsync you'll need
   //       to re-implement it with a hashtable, for obvious reasons.
-  if(big_opt_arg("verbose")->set)
+  if(big_opt_arg("verbose")->times_set > 0) {
     // enable verbose output...
+    if(big_opt_arg("verbose")->times_set > 1)
+      // enable really verbose output...
+  }
 
   // Hey check this out, we can lookup by little arg too!  The comparison is
   // a bit faster, but this still runs in linear time.
-  if(little_opt_arg('h')->set) {
+  if(little_opt_arg('h')->times_set > 0) {
     // This is kind of cool, we get to avoid writing that annoying help output
     // with a massive string this way.  This is why those descriptions you
     // pass to add_arg() are important, by the way.  Leave them blank if
@@ -101,7 +106,7 @@ int main(int argc, char** argv) {
     // a total loon you can give any arbitrary file in place of stdout.
   }
 
-  if(little_opt_arg('d')->set)
+  if(little_opt_arg('d')->times_set > 0)
     // This is handy for debugging options passed to your program, but
     // may be a little overly-verbose.  There's also print_cli_arg if you
     // only need to look at one argument.  This goes to stderr by the way.
@@ -110,17 +115,21 @@ int main(int argc, char** argv) {
   // Told you we'd use this.  Incuring the lookup overhead twice isn't that
   // big a deal, but I wanted to show you how to use that cli_arg struct.
   arg = little_opt_arg('f');
-  if(arg->set)
+  if(arg->times_set > 0) {
     // Because we specified -f as requiring a parameter, we can be confident
     // the value exists.  Well, confident insofar as your faith in the bug-free
     // status of my code, which probably shouldn't be that great considering
-    // my crippling alcoholism.
-    //
-    // I digress.  Existence means a non-null char*.  Empty strings are allowed.
-    // Therefore, the illustrative dummy method below will need to do some input
-    // validation and yell at the user if he or she is being a little shit and
-    // giving us bad output paths.
-    set_output_file(arg->value);
+    // my crippling alcoholism.  If you want to be safe, do something like this:
+    if(arg->values_length >= 1)
+      set_output_file(arg->values[0]);
+  }
+
+  // Here's what accessing multiple parameters for an argument will look like
+  // This array grows, so you can pass a lot of these if you're weird like that.
+  arg = little_opt_arg('r');
+  for(i = 0; i < arg->values_length; i++) {
+    record_data(arg->values[i]);
+  }
 
   // Do our other main() things...
 
@@ -136,7 +145,7 @@ int main(int argc, char** argv) {
 Alright, that was fun.  So what can our command line args look like?
 
 The basics
-~$ ./a.out -v -d -f file.txt
+~$ ./a.out -v -d -f file.txt -r recordone --record recordtwo
 
 Long Opts
 ~$ ./a.out --verbose --file file.txt
@@ -148,9 +157,10 @@ opts only)
 Combined little opts (note that any option taking an argument has to
 come last in the chain.  Otherwise anything after it gets parsed as
 the argument)
-~$ ./a.out -vdf file.txt
+~$ ./a.out -vdffile.txt
 
-We can't re-use arguments, this would fail.
+We can re-use any argument. This would make our output double verbose
+according to the example above.
 ~$ ./a.out -v --verbose
 
 AUTHOR
@@ -165,7 +175,6 @@ In no particular order:
 * Support for required arguments
 * Better error messages when little options are combined (like -vdf)
 * Support for equals signs in long opts (--file=test.txt)
-* Support for multiple uses of the same argument
 * Better function names and consistent terminology in the documentation
 * Unit Tests for primary functions
 * Better --help generation, with a usage line and documentation on the

@@ -1,0 +1,22 @@
+ABOUT
+
+This changelog points out interface changes concerning users between minor
+releases.
+
+0.0.1
+
+* A library was conceived.
+
+0.1.0
+
+* Multiple uses of the same option are now (always) allowed.
+* struct cli_arg now has the times_set field to identify the number
+  of times that the argument has been used.
+* struct cli_arg no longer has the set field to identify whether or
+  not the argument has been used.
+* The values field on struct cli_arg has been altered to type char**. It
+  now holds an array of the values assigned to the argument.
+* The values_length field was added to struct cli_arg to identify the number
+  of values the argument has been assigned.
+* The values_size field was added to struct cli_arg to identify the number of
+  char*s allocated in values.  This is meant primarily for internal use.

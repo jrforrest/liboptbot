@@ -5,6 +5,24 @@
 
 #include "liboptbot.h"
 
+
+/*! Helper method for copying strings
+ *
+ *  @param [str] The sting to be copied
+ *  @return The copied string.  NULL in case of an error.
+ */
+static char* clone_str(const char* str) {
+  char* new_str = (char*)malloc(sizeof(char) * (strlen(str) + 1));
+  checkmem(new_str);
+
+  strcpy(new_str, str);
+
+  return new_str;
+
+  error:
+    return NULL;
+}
+
 /*! Initializer for CLI arg
  *
  *  @return The new CLI arg, or NULL if it could not be initialized
@@ -15,12 +33,19 @@ struct cli_arg* init_cli_arg(void) {
   cli_arg = malloc(sizeof(struct cli_arg));
   checkmem(cli_arg);
 
-  cli_arg->set = false;
+  cli_arg->values = (char**)malloc(sizeof(char*) * INITIAL_VALUES_SIZE);
+  checkmem(cli_arg->values);
+  memset(cli_arg->values, 0, (int)(sizeof(char*) * INITIAL_VALUES_SIZE));
+
+  cli_arg->times_set = 0;
+  cli_arg->allow_multiple = false;
   cli_arg->description = NULL;
   cli_arg->big = NULL;
   cli_arg->little = '\0';
   cli_arg->takes_value = false;
-  cli_arg->value = NULL;
+  cli_arg->values_size = INITIAL_VALUES_SIZE;
+  cli_arg->values_length = 0;
+
 
   return cli_arg;
 
@@ -33,12 +58,16 @@ struct cli_arg* init_cli_arg(void) {
  *  @param [cli_arg] The argument to print
  */
 void print_cli_arg(struct cli_arg* cli_arg) {
+  int i;
+
   printf("Description: %s\n", cli_arg->description);
   printf("Little: %c\n", cli_arg->little);
   printf("Big: %s\n", cli_arg->big);
   printf("Takes Value: %d\n", cli_arg->takes_value);
-  printf("Set: %d\n", cli_arg->set);
-  printf("Value: %s\n\n", cli_arg->value);
+  printf("Times Set: %d\n", cli_arg->times_set);
+  printf("Values\n");
+  for(i = 0; i < cli_arg->values_length; i++)
+    printf("  %d: %s\n", i, cli_arg->values[i]);
 }
 
 /* Destructor for args
@@ -46,9 +75,12 @@ void print_cli_arg(struct cli_arg* cli_arg) {
  * @param [cli_arg] The argument to destroy
  */
 void destroy_cli_arg(struct cli_arg* cli_arg) {
+  int i;
   free(cli_arg->description);
   free(cli_arg->big);
-  free(cli_arg->value);
+  for(i = 0; i < cli_arg->times_set; i++)
+    free(cli_arg->values[i]);
+  free(cli_arg->values);
   free(cli_arg);
 }
 
@@ -66,6 +98,50 @@ struct cli_arg_list* init_cli_arg_list(void) {
   list->error = none;
   list->message = (char*)malloc(sizeof(char) * OPTBOT_ERROR_MSG_SIZE);
   return list;
+}
+
+/*! Expands the values array on the given arg
+ *
+ *  @param [arg] The arg that should be operated on
+ *  @return Was the expansion successful?
+ */
+static bool expand_values_size(struct cli_arg* arg) {
+  int i;
+
+  arg->values = (char**)realloc(arg->values, sizeof(char*) *
+    (arg->values_size + INITIAL_VALUES_SIZE));
+  checkmem(arg->values);
+  arg->values_size += INITIAL_VALUES_SIZE;
+
+  /* Initialize the new memory to 0.  I want a segfault in case I fuck
+   * up this values array later. */
+  for(i = arg->values_size - 1; i < arg->values_size; i++)
+    arg->values[i] = NULL;
+
+  return true;
+
+  error:
+    return false;
+}
+
+/*! Adds the given value to the values list of the given arg
+ *
+ *  @param [arg] The argument to which the value should be added.  This string
+ *    is copied for storage with the argument.
+ *  @param [value] The value to add to the given argument
+ *  @return Was the operation successful?
+ */
+static bool add_to_values(struct cli_arg* arg, const char* value) {
+  if(arg->values_length == arg->values_size)
+    checkmem(expand_values_size(arg));
+  arg->values[arg->values_length] = clone_str(value);
+  checkmem(arg->values[arg->values_length]);
+  arg->values_length ++;
+
+  return true;
+
+  error:
+    return false;
 }
 
 /*! Gets the last node from an argument list
@@ -247,23 +323,6 @@ struct cli_arg* big_opt_arg(struct cli_arg_list* list, const char* big_opt) {
   return cli_arg_list_find(big, list, big_opt);
 }
 
-/*! Helper method for copying strings
- *
- *  @param [str] The sting to be copied
- *  @return The copied string.  NULL in case of an error.
- */
-static char* clone_str(const char* str) {
-  char* new_str = (char*)malloc(sizeof(char) * (strlen(str) + 1));
-  checkmem(new_str);
-
-  strcpy(new_str, str);
-
-  return new_str;
-
-  error:
-    return NULL;
-}
-
 /*! Convenience method for adding an argument to the given +arg_list+
  *
  *  @param [arg_list] The list that the argument should be added to
@@ -272,8 +331,8 @@ static char* clone_str(const char* str) {
  *  @param [description] The description of the argument
  *  @param [takes_value] Does this parameter take a value?
  */
-bool add_arg(struct cli_arg_list* arg_list, char little,
-  const char* big, const char* description, bool takes_value)
+bool add_arg(struct cli_arg_list* arg_list, char little, const char* big,
+  const char* description, bool takes_value)
 {
   struct cli_arg* cli_arg = init_cli_arg();
   checkmem(cli_arg);
@@ -325,26 +384,29 @@ static bool parse_little(struct cli_arg_list* list,
   const char* opt_str, const char* next)
 {
   struct cli_arg* arg = little_opt_arg(list, opt_str[0]);
+  bool arg_added = false;
 
   error_check(list, arg, invalid_opt, "%s is not a valid option!", opt_str);
-  error_check(list, ! arg->set, set_twice, "-%c is already set!", arg->little);
 
-  arg->set = true;
+  arg->times_set++;
 
   if(arg->takes_value && strlen(opt_str) > 1) {
-    arg->value = clone_str(opt_str + 1);
+    checkmem(add_to_values(arg, opt_str + 1));
+    arg_added = true;
   } else if(arg->takes_value && next) {
-    arg->value = clone_str(next);
+    checkmem(add_to_values(arg, next));
+    arg_added = true;
   } else if(strlen(opt_str) > 1) {
     return parse_little(list, opt_str + 1, next);
   }
 
-  error_check(list, ! (arg->takes_value &&! arg->value), value_required,
+  error_check(list, ! (arg->takes_value &&! arg_added), value_required,
     "-%c requires a value!", arg->little)
 
   return true;
 
   error:
+
     return false;
 }
 
@@ -365,15 +427,18 @@ static bool parse_big(struct cli_arg_list* list,
   const char* opt_str, const char* next)
 {
   struct cli_arg* arg = big_opt_arg(list, opt_str);
+  bool arg_added = false;
 
   error_check(list, arg, invalid_opt, "--%s is not a valid option!", opt_str);
-  error_check(list, ! arg->set, set_twice, "--%s is already set!", arg->big);
 
-  arg->set = true;
+  arg->times_set++;
 
-  if(arg->takes_value && next) arg->value = clone_str(next);
+  if(arg->takes_value && next) {
+    checkmem(add_to_values(arg, next));
+    arg_added = true;
+  }
 
-  error_check(list, ! (arg->takes_value && ! arg->value), value_required,
+  error_check(list, ! (arg->takes_value && ! arg_added), value_required,
     "--%s requires a value!", arg->big);
 
   return true;
@@ -429,6 +494,10 @@ bool parse_command_line(struct cli_arg_list* list,
   return true;
 
   error:
+    if(list->error == none) {
+      list->error = out_of_memory;
+      list->message = "Failed to allocate memory.";
+    }
     return false;
 }
 
