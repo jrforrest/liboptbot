@@ -64,7 +64,7 @@ struct cli_arg_list* init_cli_arg_list(void) {
   list = malloc(sizeof(struct cli_arg_list));
   list->head = NULL;
   list->error = none;
-  list->message = (char*)malloc(sizeof(char*) * OPTBOT_ERROR_MSG_SIZE);
+  list->message = (char*)malloc(sizeof(char) * OPTBOT_ERROR_MSG_SIZE);
   return list;
 }
 
