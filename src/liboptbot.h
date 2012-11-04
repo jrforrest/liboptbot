@@ -27,7 +27,7 @@
     goto error;\
   }
 
-#define INITIAL_VALUES_SIZE 10
+#define ARRAY_INIT_SIZE 10
 
 /*! A command line argument */
 struct cli_arg {
@@ -62,6 +62,9 @@ struct cli_arg_list_node {
 };
 
 struct cli_arg_list {
+  int argc; /* The number of positional params left over after parsing */
+  char** argv; /* The positional params left over after parsing */
+  int argv_size;
   struct cli_arg_list_node* head;
   enum cli_arg_error error; /* The last error that occured */
   char*  message; /* An error string for the last error that occured */

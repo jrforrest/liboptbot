@@ -15,6 +15,8 @@ START_TEST(test_little_opt) {
   arg = little_opt_arg(arg_list, 'v');
   fail_if(arg == NULL, "-v not found");
   fail_unless(arg->times_set > 0, "-v not set!");
+
+  destroy_cli_arg_list(arg_list);
 }
 END_TEST
 
@@ -29,6 +31,8 @@ START_TEST(test_big_opt) {
   arg = big_opt_arg(arg_list, "verbose");
   fail_if(arg == NULL, "--verbose not found");
   fail_unless(arg->times_set > 0, "--verbose not set");
+
+  destroy_cli_arg_list(arg_list);
 }
 END_TEST
 
@@ -55,6 +59,8 @@ START_TEST(test_chained_little_opts) {
   fail_if(arg == NULL, "-f not found");
   fail_unless(arg->times_set > 0, "-f not set");
   fail_unless(strcmp(arg->values[0], "filename.txt") == 0);
+
+  destroy_cli_arg_list(arg_list);
 }
 END_TEST
 
@@ -69,6 +75,8 @@ START_TEST(failure_on_unkown_opt) {
     "Arg list error was not set properly");
   fail_unless(strlen(arg_list->message) > 0,
     "Arg list error message was not set properly");
+
+  destroy_cli_arg_list(arg_list);
 }
 END_TEST
 
@@ -85,6 +93,7 @@ START_TEST(value_assignments) {
 
   fail_unless(strcmp(little_opt_arg(arg_list, 'a')->values[0], "value1") == 0,
     "--arg_a was not assigned the proper value");
+  destroy_cli_arg_list(arg_list);
 }
 END_TEST
 
@@ -112,6 +121,7 @@ START_TEST(multiple_args_with_values) {
 
   fail_unless(arg->values_length == 5,
     "arg->values_length is incorrect: expected 5, got %d", arg->values_length);
+  destroy_cli_arg_list(arg_list);
 }
 END_TEST
 
@@ -144,6 +154,28 @@ START_TEST(lots_of_args_with_values) {
 }
 END_TEST
 
+START_TEST(leftover_argv) {
+  char* argv[] = {"-d", "one", "-f", "garbage", "two"};
+  struct cli_arg_list* arg_list = init_cli_arg_list();
+  int i =0;
+
+  add_arg(arg_list, 'd', "debug", "...", false);
+  add_arg(arg_list, 'f', "file", "...", true);
+
+  parse_command_line(arg_list, 5, (const char**)argv);
+
+  for(i = 0; i< arg_list->argc; i++)
+    printf("%d: %s\n", i, arg_list->argv[i]);
+  printf("%s\n", little_opt_arg(arg_list, 'f')->values[0]);
+
+  fail_unless(strcmp(arg_list->argv[0], "one") == 0);
+  fail_unless(strcmp(arg_list->argv[1], "two") == 0);
+  fail_unless(strcmp(little_opt_arg(arg_list, 'f')->values[0], "garbage") == 0);
+  fail_unless(arg_list->argc == 2, "argc is %d, expected 2", arg_list->argc);
+  destroy_cli_arg_list(arg_list);
+}
+END_TEST
+
 Suite* optbot_suite(void) {
   Suite *suite = suite_create("liboptbot");
 
@@ -155,6 +187,7 @@ Suite* optbot_suite(void) {
   tcase_add_test(main_case, failure_on_unkown_opt);
   tcase_add_test(main_case, multiple_args_with_values);
   tcase_add_test(main_case, lots_of_args_with_values);
+  tcase_add_test(main_case, leftover_argv);
   suite_add_tcase(suite, main_case);
   return suite;
 }

@@ -33,17 +33,14 @@ struct cli_arg* init_cli_arg(void) {
   cli_arg = malloc(sizeof(struct cli_arg));
   checkmem(cli_arg);
 
-  cli_arg->values = (char**)malloc(sizeof(char*) * INITIAL_VALUES_SIZE);
-  checkmem(cli_arg->values);
-  memset(cli_arg->values, 0, (int)(sizeof(char*) * INITIAL_VALUES_SIZE));
-
+  cli_arg->values = NULL;
   cli_arg->times_set = 0;
   cli_arg->allow_multiple = false;
   cli_arg->description = NULL;
   cli_arg->big = NULL;
   cli_arg->little = '\0';
   cli_arg->takes_value = false;
-  cli_arg->values_size = INITIAL_VALUES_SIZE;
+  cli_arg->values_size = 0;
   cli_arg->values_length = 0;
 
 
@@ -78,7 +75,7 @@ void destroy_cli_arg(struct cli_arg* cli_arg) {
   int i;
   free(cli_arg->description);
   free(cli_arg->big);
-  for(i = 0; i < cli_arg->times_set; i++)
+  for(i = 0; i < cli_arg->values_length; i++)
     free(cli_arg->values[i]);
   free(cli_arg->values);
   free(cli_arg);
@@ -96,27 +93,36 @@ struct cli_arg_list* init_cli_arg_list(void) {
   list = malloc(sizeof(struct cli_arg_list));
   list->head = NULL;
   list->error = none;
+  list->argc = 0;
+  list->argv = NULL;
+  list->argv_size = 0;
   list->message = (char*)malloc(sizeof(char) * OPTBOT_ERROR_MSG_SIZE);
   return list;
 }
 
-/*! Expands the values array on the given arg
+/*! Pushes a value onto an array of strings
  *
- *  @param [arg] The arg that should be operated on
- *  @return Was the expansion successful?
+ *  @param [in,out] [len] The length of the array
+ *  @param [in,out] [size] The size of the array
+ *  @param [in,out] [ary] The address of the array of strings
+ *  @param [value] The value to be pushed onto the array
+ *  @return Operation successful?
  */
-static bool expand_values_size(struct cli_arg* arg) {
-  int i;
+static bool str_array_push(
+  int* len, int* size, char*** ary, const char* value)
+{
+  if(*len == *size) {
+    *size += ARRAY_INIT_SIZE;
+    *ary = (char**)realloc(*ary, sizeof(char*) * ((*size) * ARRAY_INIT_SIZE));
+    checkmem(*ary)
 
-  arg->values = (char**)realloc(arg->values, sizeof(char*) *
-    (arg->values_size + INITIAL_VALUES_SIZE));
-  checkmem(arg->values);
-  arg->values_size += INITIAL_VALUES_SIZE;
+    // Initialize to zero so I can get some sweet segfaults later
+    memset(*ary + *len, 0, *size - *len);
+  }
 
-  /* Initialize the new memory to 0.  I want a segfault in case I fuck
-   * up this values array later. */
-  for(i = arg->values_size - 1; i < arg->values_size; i++)
-    arg->values[i] = NULL;
+  (*ary)[*len] = clone_str(value);
+  checkmem((*ary)[*len]);
+  (*len)++;
 
   return true;
 
@@ -132,17 +138,20 @@ static bool expand_values_size(struct cli_arg* arg) {
  *  @return Was the operation successful?
  */
 static bool add_to_values(struct cli_arg* arg, const char* value) {
-  if(arg->values_length == arg->values_size)
-    checkmem(expand_values_size(arg));
-  arg->values[arg->values_length] = clone_str(value);
-  checkmem(arg->values[arg->values_length]);
-  arg->values_length ++;
-
-  return true;
-
-  error:
-    return false;
+  return str_array_push(
+    &arg->values_length, &arg->values_size, &arg->values, value);
 }
+
+/*! Adds the given value to the leftover argv for the given list
+ *
+ * @param [list] The argument list to operate on
+ * @param [value] The value to push onto the lists argv
+ * @return Operation successful?
+ */
+static bool add_to_argv(struct cli_arg_list* list, const char* value) {
+  return str_array_push( &list->argc, &list->argv_size, &list->argv, value);
+}
+
 
 /*! Gets the last node from an argument list
  *
@@ -211,9 +220,17 @@ bool cli_arg_list_delete_node(struct cli_arg_list* list,
  *  @param [list] The list to be destroyed
  */
 void destroy_cli_arg_list(struct cli_arg_list* list) {
+  int i;
+
   while(list->head)
     cli_arg_list_delete_node(list, list->head);
   free(list->message);
+
+  for(i = 0; i < list->argc; i++){
+    free(list->argv[i]);
+  }
+  free(list->argv);
+
   free(list);
 }
 
@@ -381,7 +398,7 @@ bool add_arg(struct cli_arg_list* arg_list, char little, const char* big,
  *    set, false otherwise
  */
 static bool parse_little(struct cli_arg_list* list,
-  const char* opt_str, const char* next)
+  const char* opt_str, const char* next, bool* ate_next)
 {
   struct cli_arg* arg = little_opt_arg(list, opt_str[0]);
   bool arg_added = false;
@@ -396,8 +413,9 @@ static bool parse_little(struct cli_arg_list* list,
   } else if(arg->takes_value && next) {
     checkmem(add_to_values(arg, next));
     arg_added = true;
+    *ate_next = true;
   } else if(strlen(opt_str) > 1) {
-    return parse_little(list, opt_str + 1, next);
+    return parse_little(list, opt_str + 1, next, ate_next);
   }
 
   error_check(list, ! (arg->takes_value &&! arg_added), value_required,
@@ -406,7 +424,6 @@ static bool parse_little(struct cli_arg_list* list,
   return true;
 
   error:
-
     return false;
 }
 
@@ -424,10 +441,9 @@ static bool parse_little(struct cli_arg_list* list,
  *  @return True if the option was set.  False otherwise
  */
 static bool parse_big(struct cli_arg_list* list,
-  const char* opt_str, const char* next)
+  const char* opt_str, const char* next, bool* ate_next)
 {
   struct cli_arg* arg = big_opt_arg(list, opt_str);
-  bool arg_added = false;
 
   error_check(list, arg, invalid_opt, "--%s is not a valid option!", opt_str);
 
@@ -435,10 +451,10 @@ static bool parse_big(struct cli_arg_list* list,
 
   if(arg->takes_value && next) {
     checkmem(add_to_values(arg, next));
-    arg_added = true;
+    *ate_next = true;
   }
 
-  error_check(list, ! (arg->takes_value && ! arg_added), value_required,
+  error_check(list, ! (arg->takes_value && ! *ate_next), value_required,
     "--%s requires a value!", arg->big);
 
   return true;
@@ -477,17 +493,26 @@ bool parse_command_line(struct cli_arg_list* list,
 {
   int i;
   const char* next;
+  bool ate_next = false;
 
   for(i = 0; i < argc; i++) {
+    if(ate_next) {
+      ate_next = false;
+      continue;
+    }
+
     // Is there a potential value following?
     next = (i < argc - 1) && (! is_opt(argv[i + 1])) ? argv[i + 1] : NULL;
 
-    if(! is_opt(argv[i])) continue; // Skip anything that isn't an option
+    if(! is_opt(argv[i])) {
+      checkmem(add_to_argv(list, argv[i]));
+      continue;
+    }
 
     if(argv[i][1] == '-') {
-      if(! parse_big(list, argv[i] + 2, next)) goto error;
+      if(! parse_big(list, argv[i] + 2, next, &ate_next)) goto error;
     } else {
-      if(! parse_little(list, argv[i] + 1, next)) goto error;
+      if(! parse_little(list, argv[i] + 1, next, &ate_next)) goto error;
     }
   }
 

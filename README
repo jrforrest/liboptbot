@@ -124,12 +124,16 @@ int main(int argc, char** argv) {
       set_output_file(arg->values[0]);
   }
 
-  // Here's what accessing multiple parameters for an argument will look like
-  // This array grows, so you can pass a lot of these if you're weird like that.
+  // Here's what accessing multiple parameters for an argument will look like.
   arg = little_opt_arg('r');
   for(i = 0; i < arg->values_length; i++) {
     record_data(arg->values[i]);
   }
+
+  // We can also get whatever arguments were passed but not parsed or
+  // assigned as values to params
+  for(i = 0; i < arg_list->argc; i++)
+    printf("Param %d: %s\n", i + 1; arg_list->argv[i]);
 
   // Do our other main() things...
 
@@ -145,7 +149,7 @@ int main(int argc, char** argv) {
 Alright, that was fun.  So what can our command line args look like?
 
 The basics
-~$ ./a.out -v -d -f file.txt -r recordone --record recordtwo
+~$ ./a.out -v -d positional_param -f file.txt -r recordone --record recordtwo
 
 Long Opts
 ~$ ./a.out --verbose --file file.txt
