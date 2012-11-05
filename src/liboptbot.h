@@ -67,7 +67,8 @@ struct cli_arg_list {
   int argv_size;
   struct cli_arg_list_node* head;
   enum cli_arg_error error; /* The last error that occured */
-  char*  message; /* An error string for the last error that occured */
+  bool devour_flag; /* enables the -- option */
+  char* message; /* An error string for the last error that occured */
 };
 
 enum arg_type {little, big};

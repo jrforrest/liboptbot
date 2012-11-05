@@ -157,21 +157,49 @@ END_TEST
 START_TEST(leftover_argv) {
   char* argv[] = {"-d", "one", "-f", "garbage", "two"};
   struct cli_arg_list* arg_list = init_cli_arg_list();
-  int i =0;
 
   add_arg(arg_list, 'd', "debug", "...", false);
   add_arg(arg_list, 'f', "file", "...", true);
 
   parse_command_line(arg_list, 5, (const char**)argv);
 
-  for(i = 0; i< arg_list->argc; i++)
-    printf("%d: %s\n", i, arg_list->argv[i]);
-  printf("%s\n", little_opt_arg(arg_list, 'f')->values[0]);
-
   fail_unless(strcmp(arg_list->argv[0], "one") == 0);
   fail_unless(strcmp(arg_list->argv[1], "two") == 0);
   fail_unless(strcmp(little_opt_arg(arg_list, 'f')->values[0], "garbage") == 0);
   fail_unless(arg_list->argc == 2, "argc is %d, expected 2", arg_list->argc);
+  destroy_cli_arg_list(arg_list);
+}
+END_TEST
+
+START_TEST(devour_flag) {
+  char* argv[] = {"-d", "-v", "--", "arg_one", "--arg_two", "-a"};
+  struct cli_arg_list* arg_list = init_cli_arg_list();
+
+  add_arg(arg_list, 'd', "debug", "...", false);
+  add_arg(arg_list, 'v', "verbose", "...", false);
+
+  arg_list->devour_flag = true;
+
+  parse_command_line(arg_list, 6, (const char**)argv);
+
+  fail_unless(strcmp(arg_list->argv[0], "arg_one") == 0);
+  fail_unless(strcmp(arg_list->argv[1], "--arg_two") == 0);
+  fail_unless(strcmp(arg_list->argv[2], "-a") == 0);
+  destroy_cli_arg_list(arg_list);
+}
+END_TEST
+
+START_TEST(devour_flag_not_set) {
+  char* argv[] = {"-d", "-v", "--", "arg_one", "--verbose"};
+  struct cli_arg_list* arg_list = init_cli_arg_list();
+
+  add_arg(arg_list, 'd', "debug", "...", false);
+  add_arg(arg_list, 'v', "verbose", "...", false);
+
+  parse_command_line(arg_list, 5, (const char**)argv);
+
+  fail_unless(strcmp(arg_list->argv[0], "--") == 0);
+  fail_unless(little_opt_arg(arg_list, 'v')->times_set == 2);
   destroy_cli_arg_list(arg_list);
 }
 END_TEST
@@ -188,6 +216,8 @@ Suite* optbot_suite(void) {
   tcase_add_test(main_case, multiple_args_with_values);
   tcase_add_test(main_case, lots_of_args_with_values);
   tcase_add_test(main_case, leftover_argv);
+  tcase_add_test(main_case, devour_flag);
+  tcase_add_test(main_case, devour_flag_not_set);
   suite_add_tcase(suite, main_case);
   return suite;
 }

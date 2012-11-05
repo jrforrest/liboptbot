@@ -394,6 +394,7 @@ bool add_arg(struct cli_arg_list* arg_list, char little, const char* big,
  *  @param [opt_str] The option string to match arguments against
  *  @param [next] The value which should be assigned to the last argument
  *    should it require one
+ *  @param [out] [ate_next] Was next consumed?
  *  @return True if all of the options in the given +opt_str+ were successfully
  *    set, false otherwise
  */
@@ -438,6 +439,7 @@ static bool parse_little(struct cli_arg_list* list,
  *  @param [next] The value for the given option.  This is ignored if the
  *    parameter does not take a value.  Additionally, the value may be null,
  *    though it will cause an error if the argument expects a value.
+ *  @param [out] [ate_next] Was next consumed?
  *  @return True if the option was set.  False otherwise
  */
 static bool parse_big(struct cli_arg_list* list,
@@ -494,6 +496,7 @@ bool parse_command_line(struct cli_arg_list* list,
   int i;
   const char* next;
   bool ate_next = false;
+  bool devour_mode = false;
 
   for(i = 0; i < argc; i++) {
     if(ate_next) {
@@ -501,13 +504,18 @@ bool parse_command_line(struct cli_arg_list* list,
       continue;
     }
 
-    // Is there a potential value following?
-    next = (i < argc - 1) && (! is_opt(argv[i + 1])) ? argv[i + 1] : NULL;
+    if(strcmp(argv[i], "--") == 0 && list->devour_flag) {
+      devour_mode = true;
+      continue;
+    }
 
-    if(! is_opt(argv[i])) {
+    if(! is_opt(argv[i]) || devour_mode) {
       checkmem(add_to_argv(list, argv[i]));
       continue;
     }
+
+    // Is there a potential value following?
+    next = (i < argc - 1) && (! is_opt(argv[i + 1])) ? argv[i + 1] : NULL;
 
     if(argv[i][1] == '-') {
       if(! parse_big(list, argv[i] + 2, next, &ate_next)) goto error;

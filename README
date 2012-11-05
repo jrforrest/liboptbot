@@ -55,6 +55,11 @@ int main(int argc, char** argv) {
   add_arg(arg_list, 'h', "help", "Print help and exit", false);
   add_arg(arg_list, 'r', "record", "Record some data", true);
 
+  // This allows us to pass -- on the command line, which causes optbot to treat
+  // everything following it as values, rather than attempting to parse the
+  // arguments as parameters.
+  arg_list->devour_flag = true;
+
   // I just want to watch the world burn.
   retry:
 
@@ -166,6 +171,10 @@ the argument)
 We can re-use any argument. This would make our output double verbose
 according to the example above.
 ~$ ./a.out -v --verbose
+
+With the devour flag in action, -v and -d will be availible in
+arg_list->argv.  They will not be treated as parameters.
+~$ ./a.out -ffile.txt -- -v -d
 
 AUTHOR
 
