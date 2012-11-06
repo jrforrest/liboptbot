@@ -5,24 +5,6 @@
 
 #include "liboptbot.h"
 
-
-/*! Helper method for copying strings
- *
- *  @param [str] The sting to be copied
- *  @return The copied string.  NULL in case of an error.
- */
-static char* clone_str(const char* str) {
-  char* new_str = (char*)malloc(sizeof(char) * (strlen(str) + 1));
-  checkmem(new_str);
-
-  strcpy(new_str, str);
-
-  return new_str;
-
-  error:
-    return NULL;
-}
-
 /*! Initializer for CLI arg
  *
  *  @return The new CLI arg, or NULL if it could not be initialized
@@ -120,7 +102,7 @@ static bool str_array_push(
     memset(*ary + *len, 0, *size - *len);
   }
 
-  (*ary)[*len] = clone_str(value);
+  (*ary)[*len] = strdup(value);
   checkmem((*ary)[*len]);
   (*len)++;
 
@@ -357,12 +339,12 @@ bool add_arg(struct cli_arg_list* arg_list, char little, const char* big,
   cli_arg->little = little;
 
   if(big) {
-    cli_arg->big = clone_str(big);
+    cli_arg->big = strdup(big);
     checkmem(cli_arg->big);
   }
 
   if(description) {
-    cli_arg->description = clone_str(description);
+    cli_arg->description = strdup(description);
     checkmem(cli_arg->description)
   }
 
