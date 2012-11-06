@@ -153,26 +153,32 @@ int main(int argc, char** argv) {
 Alright, that was fun.  So what can our command line args look like?
 
 The basics
+
     ~$ ./a.out -v -d positional_param -f file.txt -r recordone --r recordtwo
 
 Long Opts
+
     ~$ ./a.out --verbose --file file.txt
 
 Mixed (note the lack of space after -f and its arg, that's allowed for little
 opts only)
+
     ~$ ./a.out -d -ffile.txt --verbose
 
 Combined little opts (note that any option taking an argument has to
 come last in the chain.  Otherwise anything after it gets parsed as
 the argument)
+
     ~$ ./a.out -vdffile.txt
 
 We can re-use any argument. This would make our output double verbose
 according to the example above.
+
     ~$ ./a.out -v --verbose
 
 With the devour flag in action, -v and -d will be availible in
 arg_list->argv.  They will not be treated as parameters.
+
     ~$ ./a.out -ffile.txt -- -v -d
 
 Author
