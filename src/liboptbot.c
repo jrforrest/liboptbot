@@ -116,7 +116,7 @@ static bool str_array_push(
     *ary = (char**)realloc(*ary, sizeof(char*) * ((*size) * ARRAY_INIT_SIZE));
     checkmem(*ary)
 
-    // Initialize to zero so I can get some sweet segfaults later
+    /* Initialize to zero so I can get some sweet segfaults later */
     memset(*ary + *len, 0, *size - *len);
   }
 
@@ -181,15 +181,15 @@ static void destroy_cli_arg_list_node(struct cli_arg_list_node* node) {
   free(node);
 }
 
-/*! Deletes the given +node+ from the given +list+
+/*! Deletes the given node from the given list
  *
- *  This method removes the +node+ from the given +list+, and safely destroys
+ *  This method removes the node from the given list, and safely destroys
  *  it along with it's associated argument.  The list is kept intact.
  *
  *  @param [list] The list to delete from
- *  @param [node] The node to delete from the +list+
+ *  @param [node] The node to delete from the list
  *  @return True if the node was deleted, false if the node could not be found
- *    in the +list+
+ *    in the list
  */
 bool cli_arg_list_delete_node(struct cli_arg_list* list,
   struct cli_arg_list_node* node)
@@ -267,7 +267,7 @@ void print_cli_arg_list(struct cli_arg_list* list) {
   }
 }
 
-/*! Adds an argument to the given +list+
+/*! Adds an argument to the given list
  *
  *  @return True if the node could be added, false if an error occured
  */
@@ -289,9 +289,9 @@ static bool add_cli_arg(struct cli_arg_list* list, struct cli_arg* arg) {
     return false;
 }
 
-/*! Searches an argument +list+ for the argument denoted by +opt+ and +type+
+/*! Searches an argument list for the argument denoted by opt and type
  *
- *  @param [type] The type of argument that +opt+ contains.  This will be
+ *  @param [type] The type of argument that opt contains.  This will be
  *    one of big or little.
  *  @param [list] The list to search
  *  @param [opt] The string denoting the option that should be searched for
@@ -301,8 +301,8 @@ static bool add_cli_arg(struct cli_arg_list* list, struct cli_arg* arg) {
 static struct cli_arg* cli_arg_list_find(enum arg_type type,
   const struct cli_arg_list* list, const char* opt)
 {
-  // NOTE: opt will be a pointer to a single character, rather
-  //   than a null-terminated string if type is set to little.
+  /* NOTE: opt will be a pointer to a single character, rather
+     than a null-terminated string if type is set to little. */
   struct cli_arg_list_node* list_head = list->head;
   if(! list_head) return NULL;
   while(list_head) {
@@ -316,12 +316,12 @@ static struct cli_arg* cli_arg_list_find(enum arg_type type,
   return list_head ? list_head->arg : NULL;
 }
 
-/*! A helper function for getting the argument from a list that is uses
- *  the given +little_opt+
+/*! A helper function for getting the argument from a list that uses
+ *  the given little_opt
  *
  *  @param [list] The list to search for the little option in
  *  @param [little_opt] The little option to identify the argument by
- *  @return The option matching the given +little_opt+.  NULL if no
+ *  @return The option matching the given little_opt.  NULL if no
  *    match was found.
  */
 struct cli_arg* little_opt_arg(const struct cli_arg_list* list, char little_opt) {
@@ -329,18 +329,18 @@ struct cli_arg* little_opt_arg(const struct cli_arg_list* list, char little_opt)
 }
 
 /*! A helper function for getting the argument from a list that uses the
- *  given +big_opt+
+ *  given big_opt
  *
  *  @param [list] The list to search for the argument
  *  @param [big_opt] The big argument to search for
- *  @return The argument matching the given +big_opt+.  NULL if no match
+ *  @return The argument matching the given big_opt.  NULL if no match
  *    was found.
  */
 struct cli_arg* big_opt_arg(struct cli_arg_list* list, const char* big_opt) {
   return cli_arg_list_find(big, list, big_opt);
 }
 
-/*! Convenience method for adding an argument to the given +arg_list+
+/*! Convenience method for adding an argument to the given arg_list
  *
  *  @param [arg_list] The list that the argument should be added to
  *  @param [little] The little option for the new argument
@@ -368,8 +368,8 @@ bool add_arg(struct cli_arg_list* arg_list, char little, const char* big,
 
   cli_arg->takes_value = takes_value;
 
-  // This should be swapped out for a more descriptive macro if
-  // add_cli_arg returns false for anything other than memory issues
+  /* This should be swapped out for a more descriptive macro if
+   add_cli_arg returns false for anything other than memory issues */
   checkmem(add_cli_arg(arg_list, cli_arg));
 
   return true;
@@ -380,22 +380,22 @@ bool add_arg(struct cli_arg_list* arg_list, char little, const char* big,
     return false;
 }
 
-/*! Parses a little option string into the given +list+
+/*! Parses a little option string into the given list
  *
- *  Searches the given +list+ for an argument with an argument with a little
+ *  Searches the given list for an argument with an argument with a little
  *  option matching the given opt_str.  If opt_str is longer than one character,
  *  this function either operates recursively treating each succesive character
  *  as a new little option to be assigned, or, when an argument is encountered
  *  that requires a value, treating all remaining characters as a value.  If
  *  no remaining characters are available for an argument that requires a
- *  value, the +next+ parameter is used as a value if it is not null.
+ *  value, the next parameter is used as a value if it is not null.
  *
  *  @param [list] The list to be searched for a matching argument
  *  @param [opt_str] The option string to match arguments against
  *  @param [next] The value which should be assigned to the last argument
  *    should it require one
  *  @param [out] [ate_next] Was next consumed?
- *  @return True if all of the options in the given +opt_str+ were successfully
+ *  @return True if all of the options in the given opt_str were successfully
  *    set, false otherwise
  */
 static bool parse_little(struct cli_arg_list* list,
@@ -431,7 +431,7 @@ static bool parse_little(struct cli_arg_list* list,
 /*! Parses a big option string into the matching parameter object
  *
  *  Searches through the given list for a parameter with a big option that
- *  matches the given +opt_str+, and attempts to set it.  +next+ is used as
+ *  matches the given opt_str, and attempts to set it.  next is used as
  *  the value for the argument if it is not NULL.
  *
  *  @param [list] The list to search for the given option
@@ -472,11 +472,11 @@ static bool parse_big(struct cli_arg_list* list,
  */
 static bool is_opt(const char* str) {
   int len = strlen(str);
-  // A single char can't be an option
+  /* A single char can't be an option */
   if(len < 2) return false;
-  // An option's got to start with a dash
+  /* An option's got to start with a dash */
   if(str[0] != '-') return false;
-  // A long opt has to have more than a single character after the dashes
+  /* A long opt has to have more than a single character after the dashes */
   if(str[1] == '-' && len < 4) return false;
 
   return true;
@@ -486,7 +486,7 @@ static bool is_opt(const char* str) {
  *
  * @param [in,out] [list] The argument list that will be populated
  *   with
- * @param [argc] The number of string arguments contained in +argv+
+ * @param [argc] The number of string arguments contained in argv
  * @param [argv] An array of command line arguments
  * @return True if the arguments were parsed successfully, false otherwise
  */
@@ -514,7 +514,7 @@ bool parse_command_line(struct cli_arg_list* list,
       continue;
     }
 
-    // Is there a potential value following?
+    /* Is there a potential value following? */
     next = (i < argc - 1) && (! is_opt(argv[i + 1])) ? argv[i + 1] : NULL;
 
     if(argv[i][1] == '-') {
@@ -542,7 +542,7 @@ void print_help(struct cli_arg_list* list) {
   write_help(list, stderr);
 }
 
-/*! Writes command line options to the given +file+ with their
+/*! Writes command line options to the given file with their
  *  descriptions
  *
  *  @param [list] The argument list to print
