@@ -20,3 +20,9 @@ releases.
   of values the argument has been assigned.
 * The values_size field was added to struct cli_arg to identify the number of
   char*s allocated in values.  This is meant primarily for internal use.
+
+0.1.1
+
+* Introduced the devour flag, which allows -- to be passsed on the command line,
+  escaping all options that follow it so that they will be added to the argv for
+  the arg_list that parses them.
