@@ -181,6 +181,17 @@ arg_list->argv.  They will not be treated as parameters.
 
     ~$ ./a.out -ffile.txt -- -v -d
 
+Installation
+------------
+
+Installs to /usr/local by default.  Manpages are not installed, as they don't
+have a very nice format yet.
+
+1.  Git clone
+2.  `cd` to project root
+3.  `sudo make install`
+4.  `sudo ldconfig`
+
 Author
 ------
 
